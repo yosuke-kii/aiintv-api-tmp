@@ -1,0 +1,46 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - sudo yum -y install glibc-locale-source glibc-langpack-ja
+  pre_build:
+    commands:
+      - echo "### Setting Japanese"
+      - export LANG='ja_JP.utf8'
+      - echo "### Logging in to Amazon ECR"
+      - aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
+      - echo "### Logging in to Docker Hub"
+      - echo ${DOCKER_ACCESSTOKEN} | docker login -u ${DOCKER_USER} --password-stdin
+      - echo "### Docker image tag set"
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG="${ENV_TYPE}-${CODEBUILD_BUILD_NUMBER}-${COMMIT_HASH:=latest}"
+      - echo "### Get SSM parameterstore"
+      - aws ssm get-parameter --name $SSM_APP_ENV      --query Parameter.Value --with-decryption | jq -r . > ./web/.env
+      - aws ssm get-parameter --name $SSM_NGINX_HTPASSWD      --query Parameter.Value --with-decryption | jq -r . > .htpasswd
+      - aws ssm get-parameter --name $SSM_NGINX_CONF      --query Parameter.Value | jq -r . > nginx.conf    
+      - aws ssm get-parameter --name $SSM_NGINX_VHOSTS_CONF      --query Parameter.Value | jq -r . > vhosts.conf
+      - aws ssm get-parameter --name $SSM_NGINX_DOCKERFILE              --query Parameter.Value | jq -r . > Dockerfile.nginx
+
+  build:
+    commands:
+      - echo "### Building the nginx Docker image..."
+      - docker build -t $REPOSITORY_URI_NGINX:$IMAGE_TAG -f Dockerfile.nginx .
+      - docker tag $REPOSITORY_URI_NGINX:$IMAGE_TAG $REPOSITORY_URI_NGINX:$ENV_TYPE
+      - echo "### Building the python Docker image..."
+      - docker build -t $REPOSITORY_URI_PYTHON:$IMAGE_TAG -f ./web/Dockerfile.ecs ./web
+      - docker tag $REPOSITORY_URI_PYTHON:$IMAGE_TAG $REPOSITORY_URI_PYTHON:$ENV_TYPE
+  post_build:
+    commands:
+      - echo "### Pushing the nginx and python Docker images..."
+      - docker push $REPOSITORY_URI_NGINX:$IMAGE_TAG
+      - docker push $REPOSITORY_URI_PYTHON:$IMAGE_TAG
+      - echo "### Pushing the nginx and python Docker images (for cache) ..."
+      - aws ecr batch-delete-image --repository-name $PROJECT_NGINX --image-ids imageTag=$ENV_TYPE
+      - aws ecr batch-delete-image --repository-name $PROJECT_PYTHON --image-ids imageTag=$ENV_TYPE
+      - docker push $REPOSITORY_URI_NGINX:$ENV_TYPE
+      - docker push $REPOSITORY_URI_PYTHON:$ENV_TYPE
+      - echo "### Writing image definitions file..."
+      - echo "[{\"name\":\"nginx\",\"imageUri\":\"${REPOSITORY_URI_NGINX}:${IMAGE_TAG}\"},{\"name\":\"python-api\",\"imageUri\":\"${REPOSITORY_URI_PYTHON}:${IMAGE_TAG}\"}]" > imagedefinitions.json
+artifacts:
+  files: imagedefinitions.json
