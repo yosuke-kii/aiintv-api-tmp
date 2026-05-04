@@ -19,6 +19,7 @@ phases:
       - aws ssm get-parameter --name $SSM_NGINX_CONF      --query Parameter.Value | jq -r . > nginx.conf    
       - aws ssm get-parameter --name $SSM_NGINX_VHOSTS_CONF      --query Parameter.Value | jq -r . > vhosts.conf
       - aws ssm get-parameter --name $SSM_NGINX_DOCKERFILE              --query Parameter.Value | jq -r . > Dockerfile.nginx
+      - aws ssm get-parameter --name $SSM_UVICON_DOCKERFILE --query Parameter.Value | jq -r . > Dockerfile.uvicon
 
   build:
     commands:
