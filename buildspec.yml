@@ -10,13 +10,11 @@ phases:
       - export LANG='ja_JP.utf8'
       - echo "### Logging in to Amazon ECR"
       - aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
-      - echo "### Logging in to Docker Hub"
-      - echo ${DOCKER_ACCESSTOKEN} | docker login -u ${DOCKER_USER} --password-stdin
       - echo "### Docker image tag set"
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - IMAGE_TAG="${ENV_TYPE}-${CODEBUILD_BUILD_NUMBER}-${COMMIT_HASH:=latest}"
       - echo "### Get SSM parameterstore"
-      - aws ssm get-parameter --name $SSM_APP_ENV      --query Parameter.Value --with-decryption | jq -r . > ./web/.env
+      - aws ssm get-parameter --name $SSM_APP_ENV      --query Parameter.Value --with-decryption | jq -r . > .env
       - aws ssm get-parameter --name $SSM_NGINX_HTPASSWD      --query Parameter.Value --with-decryption | jq -r . > .htpasswd
       - aws ssm get-parameter --name $SSM_NGINX_CONF      --query Parameter.Value | jq -r . > nginx.conf    
       - aws ssm get-parameter --name $SSM_NGINX_VHOSTS_CONF      --query Parameter.Value | jq -r . > vhosts.conf
