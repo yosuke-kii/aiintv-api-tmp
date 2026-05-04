@@ -25,20 +25,20 @@ phases:
       - echo "### Building the nginx Docker image..."
       - docker build -t $REPOSITORY_URI_NGINX:$IMAGE_TAG -f Dockerfile.nginx .
       - docker tag $REPOSITORY_URI_NGINX:$IMAGE_TAG $REPOSITORY_URI_NGINX:$ENV_TYPE
-      - echo "### Building the python Docker image..."
-      - docker build -t $REPOSITORY_URI_PYTHON:$IMAGE_TAG -f ./web/Dockerfile.ecs ./web
-      - docker tag $REPOSITORY_URI_PYTHON:$IMAGE_TAG $REPOSITORY_URI_PYTHON:$ENV_TYPE
+      - echo "### Building the uvicon Docker image..."
+      - docker build -t $REPOSITORY_URI_UVICON:$IMAGE_TAG -f ./web/Dockerfile.ecs ./web
+      - docker tag $REPOSITORY_URI_UVICON:$IMAGE_TAG $REPOSITORY_URI_UVICON:$ENV_TYPE
   post_build:
     commands:
-      - echo "### Pushing the nginx and python Docker images..."
+      - echo "### Pushing the nginx and uvicon Docker images..."
       - docker push $REPOSITORY_URI_NGINX:$IMAGE_TAG
-      - docker push $REPOSITORY_URI_PYTHON:$IMAGE_TAG
-      - echo "### Pushing the nginx and python Docker images (for cache) ..."
+      - docker push $REPOSITORY_URI_UVICON:$IMAGE_TAG
+      - echo "### Pushing the nginx and uvicon Docker images (for cache) ..."
       - aws ecr batch-delete-image --repository-name $PROJECT_NGINX --image-ids imageTag=$ENV_TYPE
-      - aws ecr batch-delete-image --repository-name $PROJECT_PYTHON --image-ids imageTag=$ENV_TYPE
+      - aws ecr batch-delete-image --repository-name $PROJECT_UVICON --image-ids imageTag=$ENV_TYPE
       - docker push $REPOSITORY_URI_NGINX:$ENV_TYPE
-      - docker push $REPOSITORY_URI_PYTHON:$ENV_TYPE
+      - docker push $REPOSITORY_URI_UVICON:$ENV_TYPE
       - echo "### Writing image definitions file..."
-      - echo "[{\"name\":\"nginx\",\"imageUri\":\"${REPOSITORY_URI_NGINX}:${IMAGE_TAG}\"},{\"name\":\"python-api\",\"imageUri\":\"${REPOSITORY_URI_PYTHON}:${IMAGE_TAG}\"}]" > imagedefinitions.json
+      - echo "[{\"name\":\"nginx\",\"imageUri\":\"${REPOSITORY_URI_NGINX}:${IMAGE_TAG}\"},{\"name\":\"uvicon\",\"imageUri\":\"${REPOSITORY_URI_UVICON}:${IMAGE_TAG}\"}]" > imagedefinitions.json
 artifacts:
   files: imagedefinitions.json
